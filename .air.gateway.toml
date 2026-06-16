@@ -1,0 +1,23 @@
+# .air.gateway.toml — đặt ở /backend/.air.gateway.toml
+root = "."
+tmp_dir = "tmp"
+
+[build]
+cmd = "go build -o ./tmp/gateway ./cmd/gateway"
+bin = "tmp/gateway"
+full_bin = "./tmp/gateway"
+include_ext = ["go", "toml", "yaml"]
+exclude_dir = ["tmp", "vendor", "node_modules", "migrations"]
+delay = 1000  # ms
+
+[log]
+time = false
+
+[color]
+main = "magenta"
+watcher = "cyan"
+build = "yellow"
+runner = "green"
+
+[misc]
+clean_on_exit = true

@@ -1,0 +1,45 @@
+# Admin — tất cả quyền
+p, admin, *, *, allow
+
+# Owner — quản lý room
+p, owner, room, send_message, allow
+p, owner, room, edit_message, allow
+p, owner, room, delete_message, allow
+p, owner, room, pin_message, allow
+p, owner, room, star_message, allow
+p, owner, room, kick_member, allow
+p, owner, room, ban_user, allow
+p, owner, room, prune_messages, allow
+p, owner, room, toggle_e2ee, allow
+p, owner, room, manage_roles, allow
+p, owner, room, export_messages, allow
+
+# Moderator — kiểm duyệt
+p, moderator, room, send_message, allow
+p, moderator, room, edit_message, allow
+p, moderator, room, delete_message, allow
+p, moderator, room, pin_message, allow
+p, moderator, room, star_message, allow
+p, moderator, room, kick_member, allow
+p, moderator, room, ban_user, allow
+
+# Member — cơ bản
+p, member, room, send_message, allow
+p, member, room, edit_own_message, allow
+p, member, room, delete_own_message, allow
+p, member, room, star_message, allow
+p, member, room, reply_message, allow
+p, member, room, react_message, allow
+p, member, room, upload_file, allow
+
+# Guest — chỉ đọc + gửi
+p, guest, room, send_message, allow
+p, guest, room, react_message, allow
+
+# Read-only room override
+p, member, readonly_room, send_message, deny
+p, guest, readonly_room, send_message, deny
+p, member, readonly_room, reply_message, deny
+p, guest, readonly_room, reply_message, deny
+p, member, readonly_room, react_message, deny
+p, guest, readonly_room, react_message, deny

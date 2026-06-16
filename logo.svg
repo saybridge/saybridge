@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 280" width="100%" height="100%">
+  <defs>
+    <!-- Premium Lavender Gradient from image -->
+    <linearGradient id="purpleGrad" x1="40" y1="40" x2="200" y2="210" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#d6c5ff" />
+      <stop offset="100%" stop-color="#a397ff" />
+    </linearGradient>
+
+    <mask id="maskU" maskUnits="userSpaceOnUse" x="0" y="0" width="240" height="280">
+      <rect x="0" y="0" width="240" height="280" fill="white" />
+      <path d="M 44 144 C 80 144, 90 96, 120 96" fill="none" stroke="black" stroke-width="22" stroke-linecap="round" />
+    </mask>
+
+    <mask id="maskInvertedU" maskUnits="userSpaceOnUse" x="0" y="0" width="240" height="280">
+      <rect x="0" y="0" width="240" height="280" fill="white" />
+      <path d="M 120 144 C 150 144, 160 96, 196 96" fill="none" stroke="black" stroke-width="22" stroke-linecap="round" />
+    </mask>
+  </defs>
+
+  <path d="M 99.3 197.3 
+           A 80 80 0 1 0 63.4 176.6 
+           L 50 210 Z" 
+        fill="none" stroke="url(#purpleGrad)" stroke-width="14" stroke-linejoin="round" />
+
+  <path d="M 44 96 C 80 96, 90 144, 120 144 C 150 144, 160 96, 196 96" 
+        fill="none" stroke="url(#purpleGrad)" stroke-width="14" stroke-linecap="round" mask="url(#maskU)" />
+
+  <path d="M 44 144 C 80 144, 90 96, 120 96 C 150 96, 160 144, 196 144" 
+        fill="none" stroke="url(#purpleGrad)" stroke-width="14" stroke-linecap="round" mask="url(#maskInvertedU)" />
+
+  <text x="120" y="262" font-family="'Inter', 'Helvetica Neue', Helvetica, sans-serif" font-weight="700" font-size="28" fill="#F4F4F5" text-anchor="middle" letter-spacing="-0.5">saybridge.io</text>
+</svg>

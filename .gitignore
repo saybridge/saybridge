@@ -1,0 +1,32 @@
+# OS Files
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+ehthumbs.db
+
+# IDEs and Editors
+.vscode/
+!.vscode/extensions.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+*~
+*.orig
+
+
+# Local runtime/development folders
+keys
+.env
+bin/
+tmp/
+
+# Ignore WASM plugin binary targets, but keep plugin source code
+plugins
+
+# Ignore plugin frontend dependencies & built web app files
+**/node_modules/
+**/dist/

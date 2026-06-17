@@ -233,8 +233,15 @@ func ScanAndRegister(pluginsDir string, deps *plugin.Dependencies, manifestHandl
 
 	entries, err := os.ReadDir(pluginsDir)
 	if err != nil {
-		log.Printf("[AppRuntime] Warning: cannot read plugins dir %s: %v", pluginsDir, err)
-		return
+		// Fallback to "backend/plugins" if running from the monorepo root directory
+		fallbackDir := filepath.Join("backend", pluginsDir)
+		if entries2, err2 := os.ReadDir(fallbackDir); err2 == nil {
+			pluginsDir = fallbackDir
+			entries = entries2
+		} else {
+			log.Printf("[AppRuntime] Warning: cannot read plugins dir %s: %v", pluginsDir, err)
+			return
+		}
 	}
 
 	loaded := 0

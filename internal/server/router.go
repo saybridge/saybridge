@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -74,6 +75,9 @@ func SetupRouter(s *Server) *gin.Engine {
 			return
 		}
 		fullPath := filepath.Join("plugins", slug, "web", cleaned)
+		if _, err := os.Stat(fullPath); os.IsNotExist(err) {
+			fullPath = filepath.Join("backend", "plugins", slug, "web", cleaned)
+		}
 		ctx.File(fullPath)
 	})
 

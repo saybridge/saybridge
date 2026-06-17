@@ -40,6 +40,9 @@ type Config struct {
 // If the configuration file is missing, it falls back to the system environment variables.
 func LoadConfig(path string) (*Config, error) {
 	viper.AddConfigPath(path)
+	if path == "." {
+		viper.AddConfigPath("backend")
+	}
 	viper.SetConfigName(".env")
 	viper.SetConfigType("env")
 
@@ -47,7 +50,7 @@ func LoadConfig(path string) (*Config, error) {
 	viper.AutomaticEnv()
 
 	if err := viper.ReadInConfig(); err != nil {
-		log.Printf("Warning: Could not find .env configuration file in path %s. Using default system environment variables. Error: %v", path, err)
+		log.Printf("Warning: Could not find .env configuration file in path %s (or fallback). Using default system environment variables. Error: %v", path, err)
 	}
 
 	var config Config

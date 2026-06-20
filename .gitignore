@@ -30,3 +30,8 @@ plugins
 # Ignore plugin frontend dependencies & built web app files
 **/node_modules/
 **/dist/
+minio_data
+postgres_data
+redis_data
+meilisearch_data
+nats_data

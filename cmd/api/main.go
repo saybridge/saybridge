@@ -7,11 +7,11 @@ import (
 	"github.com/saybridge/saybridge/pkg/config"
 
 	// Native plugins — blank imports trigger init() hook registration
-	_ "github.com/saybridge/saybridge/plugins/ai-agent"
+	_ "github.com/saybridge/saybridge/internal/copilot"
+	_ "github.com/saybridge/saybridge/internal/slashcmd"
 	_ "github.com/saybridge/saybridge/plugins/custom-emoji"
 	_ "github.com/saybridge/saybridge/plugins/linkpreview"
 	_ "github.com/saybridge/saybridge/plugins/pin"
-	_ "github.com/saybridge/saybridge/plugins/slashcmd"
 	_ "github.com/saybridge/saybridge/plugins/star"
 
 	_ "github.com/saybridge/saybridge/plugins/call"

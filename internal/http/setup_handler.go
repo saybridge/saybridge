@@ -140,6 +140,7 @@ func (h *SetupHandler) CompleteSetup(c *gin.Context) {
 			{
 				TenantID:    tenant.ID,
 				Name:        "general",
+				Slug:        "general",
 				Type:        "channel",
 				Description: "General channel for all members",
 				CreatedBy:   &admin.ID,
@@ -147,6 +148,7 @@ func (h *SetupHandler) CompleteSetup(c *gin.Context) {
 			{
 				TenantID:    tenant.ID,
 				Name:        "random",
+				Slug:        "random",
 				Type:        "channel",
 				Description: "Free chat, share anything",
 				CreatedBy:   &admin.ID,
@@ -154,6 +156,7 @@ func (h *SetupHandler) CompleteSetup(c *gin.Context) {
 			{
 				TenantID:    tenant.ID,
 				Name:        "announcements",
+				Slug:        "announcements",
 				Type:        "channel",
 				Description: "Important announcements from administrators",
 				IsReadOnly:  true,

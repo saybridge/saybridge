@@ -25,6 +25,16 @@ func RegisterDefaults() {
 		ActionType: "client", Permission: "edit_own_message", OwnerOnly: true, Section: "default",
 	})
 	DefaultRegistry.Register(ActionDefinition{
+		ID: "copilot_translate", Label: "Translate message", Icon: "Globe",
+		Slot: SlotMessageContextMenu, Source: "core", SortOrder: 40,
+		ActionType: "client", Section: "default",
+	})
+	DefaultRegistry.Register(ActionDefinition{
+		ID: "copilot_explain", Label: "Explain with Copilot", Icon: "Sparkles",
+		Slot: SlotMessageContextMenu, Source: "core", SortOrder: 50,
+		ActionType: "client", Section: "default",
+	})
+	DefaultRegistry.Register(ActionDefinition{
 		ID: "copy_text", Label: "Copy message", Icon: "Copy",
 		Slot: SlotMessageContextMenu, Source: "core", SortOrder: 60,
 		ActionType: "client", Section: "default",
@@ -71,6 +81,11 @@ func RegisterDefaults() {
 	DefaultRegistry.Register(ActionDefinition{
 		ID: "search", Label: "Search", Icon: "Search",
 		Slot: SlotChannelHeaderButton, Source: "core", SortOrder: 20,
+		ActionType: "client", Section: "default",
+	})
+	DefaultRegistry.Register(ActionDefinition{
+		ID: "copilot", Label: "Copilot Assistant", Icon: "Sparkles",
+		Slot: SlotChannelHeaderButton, Source: "core", SortOrder: 25,
 		ActionType: "client", Section: "default",
 	})
 	DefaultRegistry.Register(ActionDefinition{

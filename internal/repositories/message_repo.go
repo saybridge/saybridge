@@ -216,6 +216,11 @@ func chatMsgToDomain(cm *domain.ChatMessage) domain.Message {
 		parentID = *cm.ParentID
 	}
 
+	replyToID := ""
+	if cm.ReplyToID != nil {
+		replyToID = *cm.ReplyToID
+	}
+
 	var editedAt time.Time
 	if cm.EditedAt != nil {
 		editedAt = *cm.EditedAt
@@ -230,6 +235,7 @@ func chatMsgToDomain(cm *domain.ChatMessage) domain.Message {
 		Content:    cm.Content,
 		MsgType:    cm.MsgType,
 		ParentID:   parentID,
+		ReplyToID:  replyToID,
 		IsEdited:   cm.IsEdited,
 		IsDeleted:  cm.IsDeleted,
 		Reactions:  reactions,
@@ -243,6 +249,11 @@ func domainToChatMsg(msg *domain.Message) domain.ChatMessage {
 	var parentID *string
 	if msg.ParentID != "" {
 		parentID = &msg.ParentID
+	}
+
+	var replyToID *string
+	if msg.ReplyToID != "" {
+		replyToID = &msg.ReplyToID
 	}
 
 	reactions := datatypes.JSON("{}")
@@ -266,6 +277,7 @@ func domainToChatMsg(msg *domain.Message) domain.ChatMessage {
 		Content:    msg.Content,
 		MsgType:    msg.MsgType,
 		ParentID:   parentID,
+		ReplyToID:  replyToID,
 		IsEdited:   msg.IsEdited,
 		IsDeleted:  msg.IsDeleted,
 		Reactions:  reactions,

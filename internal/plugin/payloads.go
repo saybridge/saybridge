@@ -17,6 +17,7 @@ type MessagePayload struct {
 	Content    string    `json:"content"`
 	MsgType    string    `json:"msg_type"`
 	ParentID   string    `json:"parent_id,omitempty"`
+	ReplyToID  string    `json:"reply_to_id,omitempty"`
 	CreatedAt  time.Time `json:"created_at"`
 
 	// Mutation flag — set by Before* handlers to indicate content was modified
@@ -122,6 +123,7 @@ func (p *MessagePayload) ToMap() map[string]interface{} {
 		"content":     p.Content,
 		"msg_type":    p.MsgType,
 		"parent_id":   p.ParentID,
+		"reply_to_id": p.ReplyToID,
 		"created_at":  p.CreatedAt,
 	}
 }

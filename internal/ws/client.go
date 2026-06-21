@@ -155,10 +155,11 @@ func (c *Client) ReadPump() {
 			}
 		case "msg:send":
 			var msgData struct {
-				LocalID  string `json:"local_id"`
-				Content  string `json:"content"`
-				MsgType  string `json:"msg_type"`
-				ParentID string `json:"parent_id"`
+				LocalID   string `json:"local_id"`
+				Content   string `json:"content"`
+				MsgType   string `json:"msg_type"`
+				ParentID  string `json:"parent_id"`
+				ReplyToID string `json:"reply_to_id"`
 			}
 			if err := json.Unmarshal(frame.Data, &msgData); err != nil {
 				log.Printf("[Client] Failed to unmarshal msg:send payload: %v", err)
@@ -170,7 +171,7 @@ func (c *Client) ReadPump() {
 				msgType = msgData.MsgType
 			}
 
-			msg, err := c.msgUseCase.SendMessage(context.Background(), c.tenantID, c.userID, frame.RoomID, msgData.Content, msgType, msgData.ParentID)
+			msg, err := c.msgUseCase.SendMessage(context.Background(), c.tenantID, c.userID, frame.RoomID, msgData.Content, msgType, msgData.ParentID, msgData.ReplyToID)
 			if err != nil {
 				log.Printf("[Client] Failed to process SendMessage: %v", err)
 				errFrame := map[string]interface{}{

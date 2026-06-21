@@ -98,7 +98,7 @@ type MessageRepository interface {
 // MessageUseCase defines business operations for real-time messaging services.
 type MessageUseCase interface {
 	SetEnforcer(enforcer *authz.AuthzEnforcer)
-	SendMessage(ctx context.Context, tenantID, senderID, roomID, content, msgType, parentID string) (*Message, error)
+	SendMessage(ctx context.Context, tenantID, senderID, roomID, content, msgType, parentID, replyToID string) (*Message, error)
 	GetMessageHistory(ctx context.Context, userID, roomID string, limit int, beforeID string) ([]Message, error)
 	EditMessage(ctx context.Context, tenantID, userID, roomID, messageID string, timeBucket int, newContent string) (*Message, error)
 	DeleteMessage(ctx context.Context, tenantID, userID, roomID, messageID string, timeBucket int) (*Message, error)

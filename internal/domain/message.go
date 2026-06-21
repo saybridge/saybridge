@@ -14,6 +14,7 @@ type Message struct {
 	Content    string    `json:"content"`
 	MsgType    string    `json:"msg_type"` // 'text', 'image', 'file', 'voice', 'system'
 	ParentID    string            `json:"parent_id,omitempty"`
+	ReplyToID   string            `json:"reply_to_id,omitempty"`
 	ThreadCount int               `json:"thread_count,omitempty"`
 	IsEdited    bool              `json:"is_edited"`
 	IsDeleted   bool              `json:"is_deleted"`

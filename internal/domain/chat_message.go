@@ -16,6 +16,7 @@ type ChatMessage struct {
 	Content    string         `gorm:"type:text;not null;default:''" json:"content"`
 	MsgType    string         `gorm:"type:varchar(20);not null;default:'text'" json:"msg_type"`
 	ParentID   *string        `gorm:"type:uuid;index:idx_chat_messages_parent" json:"parent_id,omitempty"`
+	ReplyToID  *string        `gorm:"type:uuid;index:idx_chat_messages_reply_to" json:"reply_to_id,omitempty"`
 	IsEdited   bool           `gorm:"default:false" json:"is_edited"`
 	IsDeleted  bool           `gorm:"default:false" json:"is_deleted"`
 	Reactions  datatypes.JSON `gorm:"type:jsonb;default:'{}'" json:"reactions"`

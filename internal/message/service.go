@@ -112,7 +112,7 @@ func (u *messageUseCase) checkPermission(ctx context.Context, userID, roomID, ac
 	return nil
 }
 
-func (u *messageUseCase) SendMessage(ctx context.Context, tenantID, senderID, roomID, content, msgType, parentID string) (*domain.Message, error) {
+func (u *messageUseCase) SendMessage(ctx context.Context, tenantID, senderID, roomID, content, msgType, parentID, replyToID string) (*domain.Message, error) {
 	// 1. Verify and retrieve sender identity
 	user, err := u.userRepo.GetUserByID(ctx, senderID)
 	if err != nil {
@@ -143,10 +143,12 @@ func (u *messageUseCase) SendMessage(ctx context.Context, tenantID, senderID, ro
 	// 4. Emit BeforeSendMessage lifecycle hook (profanity filter, spam check, content policy, etc.)
 	// If any handler returns error, the message send is halted.
 	if err := u.hooks.Emit(ctx, plugin.BeforeSendMessage, map[string]interface{}{
-		"sender_id": senderID,
-		"room_id":   roomID,
-		"content":   content,
-		"msg_type":  msgType,
+		"sender_id":   senderID,
+		"room_id":     roomID,
+		"content":     content,
+		"msg_type":    msgType,
+		"parent_id":   parentID,
+		"reply_to_id": replyToID,
 	}); err != nil {
 		return nil, err
 	}
@@ -159,6 +161,7 @@ func (u *messageUseCase) SendMessage(ctx context.Context, tenantID, senderID, ro
 		Content:    content,
 		MsgType:    msgType,
 		ParentID:   parentID,
+		ReplyToID:  replyToID,
 		IsEdited:   false,
 		IsDeleted:  false,
 		CreatedAt:  time.Now(),

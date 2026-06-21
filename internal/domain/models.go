@@ -116,7 +116,7 @@ type ReadPosition struct {
 type File struct {
 	BaseModel
 	TenantID    string `gorm:"type:uuid;index;not null" json:"tenant_id"`
-	RoomID      string `gorm:"type:uuid;index" json:"room_id,omitempty"`
+	RoomID      *string `gorm:"type:uuid;index" json:"room_id,omitempty"`
 	UserID      string `gorm:"type:uuid;index;not null" json:"user_id"`
 	StorageKey  string `gorm:"type:varchar(512);not null" json:"storage_key"`
 	Filename    string `gorm:"type:varchar(255);not null" json:"filename"`

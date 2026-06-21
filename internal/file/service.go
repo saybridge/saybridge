@@ -97,12 +97,17 @@ func (u *fileUseCase) PresignUpload(
 	}
 
 	// 7. Save metadata as pending
+	var roomIDPtr *string
+	if roomID != "" {
+		roomIDPtr = &roomID
+	}
+
 	fileRecord := &domain.File{
 		BaseModel: domain.BaseModel{
 			ID: uuid.New().String(),
 		},
 		TenantID:    tenantID,
-		RoomID:      roomID,
+		RoomID:      roomIDPtr,
 		UserID:      userID,
 		StorageKey:  objectKey,
 		Filename:    filename,
@@ -177,12 +182,17 @@ func (u *fileUseCase) UploadFileDirect(
 	}
 
 	// 7. Save metadata as completed (no confirm step needed)
+	var roomIDPtr *string
+	if roomID != "" {
+		roomIDPtr = &roomID
+	}
+
 	fileRecord := &domain.File{
 		BaseModel: domain.BaseModel{
 			ID: uuid.New().String(),
 		},
 		TenantID:    tenantID,
-		RoomID:      roomID,
+		RoomID:      roomIDPtr,
 		UserID:      userID,
 		StorageKey:  objectKey,
 		Filename:    filename,
@@ -327,8 +337,8 @@ func (u *fileUseCase) DeleteFile(ctx context.Context, tenantID, userID, fileID s
 	// Only owner or room owners/admins can delete files. Here we enforce owner check for simplicity.
 	if file.UserID != userID {
 		// Verify if the user is a room owner
-		if file.RoomID != "" {
-			member, err := u.roomRepo.GetRoomMember(ctx, file.RoomID, userID)
+		if file.RoomID != nil && *file.RoomID != "" {
+			member, err := u.roomRepo.GetRoomMember(ctx, *file.RoomID, userID)
 			if err != nil || member.RoomRole != "owner" {
 				return errors.New("permission denied: you do not have permission to delete this file")
 			}
@@ -362,8 +372,8 @@ func (u *fileUseCase) GetFileByID(ctx context.Context, tenantID, userID, fileID 
 	}
 
 	// Verify if the user is a member of the room where the file was shared (if it is a room file)
-	if file.RoomID != "" {
-		_, err := u.roomRepo.GetRoomMember(ctx, file.RoomID, userID)
+	if file.RoomID != nil && *file.RoomID != "" {
+		_, err := u.roomRepo.GetRoomMember(ctx, *file.RoomID, userID)
 		if err != nil {
 			return nil, errors.New("permission denied: not a member of the room where the file is shared")
 		}

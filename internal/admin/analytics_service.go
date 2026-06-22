@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/saybridge/saybridge/pkg/metrics"
 	"gorm.io/gorm"
 )
 
@@ -234,17 +235,19 @@ func (s *AnalyticsService) getStorageUsage(ctx context.Context) (storageMetrics,
 	}, nil
 }
 
-// getHealthMetrics returns basic system health indicators.
-// In production these would be pulled from Prometheus / internal metrics.
+// getHealthMetrics returns live system health indicators read from the
+// Prometheus registry (the same metrics scraped at /metrics).
 func (s *AnalyticsService) getHealthMetrics() healthMetrics {
+	p50, p95, p99 := metrics.HTTPLatencyQuantiles()
+	loaded := int(metrics.LoadedPlugins())
 	return healthMetrics{
-		WSConnections:  0,
-		ErrorRate:      0.0,
-		APILatencyP50:  0.0,
-		APILatencyP95:  0.0,
-		APILatencyP99:  0.0,
-		PluginsRunning: 0,
-		PluginsTotal:   0,
+		WSConnections:  int64(metrics.ActiveWSConnections()),
+		ErrorRate:      metrics.HTTPErrorRate(),
+		APILatencyP50:  p50,
+		APILatencyP95:  p95,
+		APILatencyP99:  p99,
+		PluginsRunning: loaded,
+		PluginsTotal:   loaded,
 	}
 }
 

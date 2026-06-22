@@ -11,6 +11,7 @@ import (
 	"github.com/saybridge/saybridge/internal/domain"
 	"github.com/saybridge/saybridge/internal/plugin"
 	"github.com/saybridge/saybridge/pkg/crypto"
+	"github.com/saybridge/saybridge/pkg/metrics"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -89,6 +90,8 @@ func (u *authUseCase) Register(ctx context.Context, username, email, password, d
 		"email":    user.Email,
 	})
 
+	metrics.IncAuth("register")
+
 	return user, nil
 }
 
@@ -113,6 +116,7 @@ func (u *authUseCase) Login(ctx context.Context, email, password, deviceID, devi
 			// Local password mismatch — try external authentication as fallback
 			user, err = u.tryExternalAuth(ctx, email, password)
 			if err != nil {
+				metrics.IncAuth("failure")
 				return nil, errors.New("invalid email or password")
 			}
 		}
@@ -163,6 +167,8 @@ func (u *authUseCase) Login(ctx context.Context, email, password, deviceID, devi
 	user.LastActiveAt = &now
 	user.Presence = "online"
 	_ = u.repo.UpdateUser(ctx, user)
+
+	metrics.IncAuth("success")
 
 	return &domain.TokenPair{
 		AccessToken:  accessToken,
@@ -229,6 +235,8 @@ func (u *authUseCase) Refresh(ctx context.Context, refreshToken, deviceID string
 	if err != nil {
 		return nil, fmt.Errorf("failed to save rotated session token: %w", err)
 	}
+
+	metrics.IncAuth("refresh")
 
 	return &domain.TokenPair{
 		AccessToken:  newAccessToken,

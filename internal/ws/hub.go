@@ -7,6 +7,8 @@ import (
 	"sync"
 
 	"github.com/nats-io/nats.go"
+
+	"github.com/saybridge/saybridge/pkg/metrics"
 )
 
 // Hub coordinates multiple active WebSocket client sessions and room events distribution.
@@ -59,6 +61,7 @@ func (h *Hub) Run() {
 		select {
 		case client := <-h.register:
 			h.clients[client] = true
+			metrics.IncWSConnection()
 			log.Printf("[Hub] Client connection registered for user [%s]", client.userID)
 
 		case client := <-h.unregister:
@@ -66,6 +69,7 @@ func (h *Hub) Run() {
 				delete(h.clients, client)
 				close(client.send)
 				h.leaveAllRooms(client)
+				metrics.DecWSConnection()
 				log.Printf("[Hub] Client connection unregistered for user [%s]", client.userID)
 			}
 		}

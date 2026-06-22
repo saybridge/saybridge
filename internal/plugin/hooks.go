@@ -5,8 +5,11 @@ import (
 	"fmt"
 	"sort"
 	"sync"
+	"time"
 
 	"github.com/rs/zerolog/log"
+
+	"github.com/saybridge/saybridge/pkg/metrics"
 )
 
 // HookEvent defines all lifecycle hook points in the system.
@@ -191,12 +194,16 @@ func NewHookRegistry() *HookRegistry {
 // single misbehaving plugin can never crash the host process. Sync emitters
 // treat the returned error like any other (fail-fast); async emitters log it.
 func safeCall(ctx context.Context, name string, event HookEvent, fn func(context.Context, map[string]interface{}) (interface{}, error), payload map[string]interface{}) (result interface{}, err error) {
+	start := time.Now()
+	panicked := false
 	defer func() {
 		if rec := recover(); rec != nil {
+			panicked = true
 			log.Error().Msgf("[Hook Registry] Handler '%s' for event '%s' panicked: %v", name, event, rec)
 			result = nil
 			err = fmt.Errorf("handler %q panicked: %v", name, rec)
 		}
+		metrics.ObservePluginHook(string(event), name, time.Since(start), err, panicked)
 	}()
 	return fn(ctx, payload)
 }

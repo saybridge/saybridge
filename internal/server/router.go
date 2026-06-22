@@ -16,6 +16,7 @@ import (
 	"github.com/saybridge/saybridge/internal/plugin/actionregistry"
 	"github.com/saybridge/saybridge/internal/ws"
 	"github.com/saybridge/saybridge/pkg/events"
+	"github.com/saybridge/saybridge/pkg/metrics"
 
 	_ "github.com/saybridge/saybridge/docs"
 	swaggerFiles "github.com/swaggo/files"
@@ -43,6 +44,7 @@ func SetupRouter(s *Server) *gin.Engine {
 	// ── Global Middleware ────────────────────────────────────────────────────
 	r.Use(middleware.LoggerMiddleware())
 	r.Use(middleware.RecoveryMiddleware())
+	r.Use(metrics.PrometheusMiddleware())
 	r.Use(middleware.CORSMiddlewareWithOrigins(allowedOrigins))
 	r.Use(middleware.SecurityHeaders(middleware.SecurityHeadersConfig{
 		IsDev: s.cfg.Env == "" || s.cfg.Env == "development",
@@ -51,6 +53,14 @@ func SetupRouter(s *Server) *gin.Engine {
 
 	// Swagger UI
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+
+	// ── Prometheus metrics (scrape target; guard with METRICS_TOKEN env) ─────
+	r.GET("/metrics", metrics.MetricsHandler())
+
+	// Register DB connection-pool collector for pool stats in /metrics.
+	if sqlDB, err := s.db.DB(); err == nil {
+		metrics.RegisterDBCollector(sqlDB, "main")
+	}
 
 	// ── System routes (Public) ───────────────────────────────────────────────
 	RegisterSystemRoutes(r, s.db)

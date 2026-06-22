@@ -4,6 +4,9 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"time"
+
+	"github.com/saybridge/saybridge/pkg/metrics"
 )
 
 // DefaultGateway is the global AI Gateway instance initialized at startup.
@@ -42,7 +45,19 @@ func (g *Gateway) Query(ctx context.Context, req *ChatRequest) (*ChatResponse, e
 	if !ok {
 		return nil, fmt.Errorf("active AI provider %q is not registered", primary)
 	}
-	return p.Chat(ctx, req)
+
+	start := time.Now()
+	resp, err := p.Chat(ctx, req)
+	outcome := "success"
+	if err != nil {
+		outcome = "error"
+	}
+	inTok, outTok := 0, 0
+	if resp != nil {
+		inTok, outTok = resp.InputTokens, resp.OutputTokens
+	}
+	metrics.ObserveAI(primary, req.Model, outcome, time.Since(start), inTok, outTok)
+	return resp, err
 }
 
 // Stream routes a streaming chat completion request to the active provider.
@@ -56,7 +71,15 @@ func (g *Gateway) Stream(ctx context.Context, req *ChatRequest, ch chan<- Stream
 		close(ch)
 		return fmt.Errorf("active AI provider %q is not registered", primary)
 	}
-	return p.ChatStream(ctx, req, ch)
+
+	start := time.Now()
+	err := p.ChatStream(ctx, req, ch)
+	outcome := "success"
+	if err != nil {
+		outcome = "error"
+	}
+	metrics.ObserveAI(primary, req.Model, outcome, time.Since(start), 0, 0)
+	return err
 }
 
 // Embed routes an embedding generation request to a provider that supports

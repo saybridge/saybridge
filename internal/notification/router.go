@@ -9,6 +9,7 @@ import (
 
 	"github.com/saybridge/saybridge/internal/domain"
 	"github.com/saybridge/saybridge/internal/plugin"
+	"github.com/saybridge/saybridge/pkg/metrics"
 	"gorm.io/gorm"
 )
 
@@ -50,6 +51,7 @@ func (r *NotificationRouter) Notify(ctx context.Context, userID string, notif No
 	if err := r.db.First(&settings, "user_id = ?", userID).Error; err == nil {
 		if !settings.NotificationsEnabled {
 			// Notifications are globally disabled for this user
+			metrics.IncNotification(notif.Type, "none", "suppressed")
 			return
 		}
 	}
@@ -60,6 +62,7 @@ func (r *NotificationRouter) Notify(ctx context.Context, userID string, notif No
 		if err := r.db.Where("room_id = ? AND user_id = ?", notif.RoomID, userID).First(&member).Error; err == nil {
 			if member.NotificationsMuted {
 				// Room notifications are muted
+				metrics.IncNotification(notif.Type, "none", "suppressed")
 				return
 			}
 		}
@@ -80,12 +83,14 @@ func (r *NotificationRouter) Notify(ctx context.Context, userID string, notif No
 			presence, customStatus := r.recipientStatus(ctx, userID)
 			if IsFocusMode(presence, customStatus) {
 				log.Debug().Msgf("[NotificationRouter] Suppressed %s notification for user %s (focus mode)", notif.Priority, userID)
+				metrics.IncNotification(notif.Type, "none", "suppressed")
 				return
 			}
 
 			decision := r.smart.Group(ctx, userID, notif.RoomID, senderName)
 			if !decision.Deliver {
 				log.Debug().Msgf("[NotificationRouter] Grouped notification for user %s in room %s", userID, notif.RoomID)
+				metrics.IncNotification(notif.Type, "none", "suppressed")
 				return
 			}
 			notif.Body = decision.Body
@@ -101,6 +106,7 @@ func (r *NotificationRouter) Notify(ctx context.Context, userID string, notif No
 	if r.hooks != nil {
 		if err := r.hooks.Emit(ctx, plugin.BeforeNotify, payload); err != nil {
 			log.Warn().Err(err).Msgf("[NotificationRouter] Notification to user %s was blocked by plugin", userID)
+			metrics.IncNotification(notif.Type, "none", "blocked")
 			return
 		}
 
@@ -118,7 +124,10 @@ func (r *NotificationRouter) Notify(ctx context.Context, userID string, notif No
 		go func(t Transport) {
 			if err := t.Send(context.Background(), userID, notif); err != nil {
 				log.Error().Err(err).Msgf("[NotificationRouter] Transport %s failed to send to user %s", t.Name(), userID)
+				metrics.IncNotification(notif.Type, t.Name(), "failed")
+				return
 			}
+			metrics.IncNotification(notif.Type, t.Name(), "sent")
 		}(transport)
 	}
 

@@ -14,6 +14,7 @@ import (
 	"github.com/saybridge/saybridge/internal/domain"
 	"github.com/saybridge/saybridge/internal/plugin"
 	"github.com/saybridge/saybridge/pkg/events"
+	"github.com/saybridge/saybridge/pkg/metrics"
 )
 
 // RegisterPluginRoutes sets up plugin system routes and wires the plugin Dependencies struct.
@@ -149,6 +150,7 @@ func RegisterPluginRoutes(api *gin.RouterGroup, s *Server, c *app.Container) {
 	}
 
 	wasm.ScanAndRegister("plugins", &deps, manifestHandler)
+	metrics.SetPluginsLoaded(len(wasm.Registry.AllApps()))
 	api.GET("/plugins/manifest", manifestHandler.GetManifests)
 	api.POST("/plugins/:slug/toggle", manifestHandler.TogglePlugin)
 

@@ -13,6 +13,7 @@ import (
 	"github.com/saybridge/saybridge/internal/domain"
 	"github.com/saybridge/saybridge/internal/plugin"
 	"github.com/saybridge/saybridge/pkg/events"
+	"github.com/saybridge/saybridge/pkg/metrics"
 )
 
 type messageUseCase struct {
@@ -181,6 +182,8 @@ func (u *messageUseCase) SendMessage(ctx context.Context, tenantID, senderID, ro
 			_ = u.readPosRepo.IncrementUnreadForRoomMembers(ctx, roomID, senderID)
 		}
 	}
+
+	metrics.IncMessage(msg.MsgType)
 
 	// 7. Broadcast event payload across all clustered nodes via NATS JetStream Pub/Sub
 	subject := events.RoomSubject(tenantID, roomID)

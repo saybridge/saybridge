@@ -4,8 +4,11 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/rs/zerolog/log"
+
+	"github.com/saybridge/saybridge/pkg/metrics"
 )
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -42,12 +45,16 @@ type TypedHookHandler struct {
 // safeCallTyped invokes a typed handler, converting any panic into an error so
 // a misbehaving plugin can never crash the host process.
 func safeCallTyped(ctx context.Context, name string, event HookEvent, fn func(context.Context, interface{}) (*HookResult, error), payload interface{}) (result *HookResult, err error) {
+	start := time.Now()
+	panicked := false
 	defer func() {
 		if rec := recover(); rec != nil {
+			panicked = true
 			log.Error().Msgf("[Hook Registry] Typed handler '%s' for event '%s' panicked: %v", name, event, rec)
 			result = nil
 			err = fmt.Errorf("typed handler %q panicked: %v", name, rec)
 		}
+		metrics.ObservePluginHook(string(event), name, time.Since(start), err, panicked)
 	}()
 	return fn(ctx, payload)
 }

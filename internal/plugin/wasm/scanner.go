@@ -250,6 +250,12 @@ func ScanAndRegister(pluginsDir string, deps *plugin.Dependencies, manifestHandl
 			continue
 		}
 
+		// Skip scaffold/template directories (e.g. "_template") — they are
+		// developer examples, not installable plugins.
+		if strings.HasPrefix(entry.Name(), "_") {
+			continue
+		}
+
 		manifestPath := filepath.Join(pluginsDir, entry.Name(), "manifest.json")
 		data, err := os.ReadFile(manifestPath)
 		if err != nil {

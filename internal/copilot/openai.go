@@ -232,6 +232,9 @@ type openaiEmbeddingResponse struct {
 	} `json:"data"`
 }
 
+// SupportsEmbeddings reports true: OpenAI exposes an embeddings endpoint.
+func (p *OpenAIProvider) SupportsEmbeddings() bool { return true }
+
 func (p *OpenAIProvider) Embeddings(ctx context.Context, texts []string) ([][]float32, error) {
 	bodyObj := openaiEmbeddingRequest{
 		Model: "text-embedding-3-small",

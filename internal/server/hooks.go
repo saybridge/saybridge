@@ -15,8 +15,8 @@ import (
 // When a message is successfully sent, this hook determines recipients and dispatches
 // notifications via the notification router.
 func RegisterNotificationHook(s *Server, c *app.Container) {
-	desktopTransport := notification.NewDesktopTransport(s.js)
-	notifRouter := notification.NewNotificationRouter(s.db, plugin.Registry, desktopTransport)
+	desktopTransport := notification.NewDesktopTransport(s.natsConn)
+	notifRouter := notification.NewNotificationRouter(s.db, s.rdb, plugin.Registry, desktopTransport)
 
 	// Hook: when a message is successfully sent, dispatch notifications
 	plugin.Registry.On(plugin.AfterSendMessage, plugin.HookHandler{
@@ -58,6 +58,7 @@ func RegisterNotificationHook(s *Server, c *app.Container) {
 					"message_id":  messageID,
 					"sender_id":   senderID,
 					"sender_name": sender.DisplayName,
+					"room_type":   room.Type,
 				},
 			}
 

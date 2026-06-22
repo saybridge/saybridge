@@ -13,8 +13,9 @@ type MockProvider struct {
 	embedFn func(ctx context.Context, texts []string) ([][]float32, error)
 }
 
-func (m *MockProvider) ID() string   { return "gemini" }
-func (m *MockProvider) Name() string { return "Mock Provider" }
+func (m *MockProvider) ID() string                { return "gemini" }
+func (m *MockProvider) Name() string              { return "Mock Provider" }
+func (m *MockProvider) SupportsEmbeddings() bool  { return true }
 func (m *MockProvider) Chat(ctx context.Context, req *ChatRequest) (*ChatResponse, error) {
 	if m.chatFn != nil {
 		return m.chatFn(ctx, req)

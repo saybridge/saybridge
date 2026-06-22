@@ -191,6 +191,9 @@ type ollamaEmbeddingResponse struct {
 	Embedding []float32 `json:"embedding"`
 }
 
+// SupportsEmbeddings reports true: Ollama exposes a local embeddings endpoint.
+func (p *OllamaProvider) SupportsEmbeddings() bool { return true }
+
 func (p *OllamaProvider) Embeddings(ctx context.Context, texts []string) ([][]float32, error) {
 	res := make([][]float32, len(texts))
 	for i, text := range texts {

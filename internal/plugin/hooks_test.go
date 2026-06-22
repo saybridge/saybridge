@@ -5,6 +5,7 @@ import (
 	"errors"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/saybridge/saybridge/internal/domain"
 )
@@ -357,5 +358,47 @@ func TestHookRegistry_EmitNoHandlers(t *testing.T) {
 	}
 	if result != nil {
 		t.Errorf("EmitTyped with no handlers should return original payload (nil), got: %v", result)
+	}
+}
+
+func TestEmit_RecoversFromPanic(t *testing.T) {
+	reg := NewHookRegistry()
+
+	reg.On(PreLogin, HookHandler{
+		Name:    "panicking-handler",
+		Runtime: RuntimeNative,
+		Fn: func(ctx context.Context, payload map[string]interface{}) (interface{}, error) {
+			panic("boom")
+		},
+	})
+
+	// A panicking sync handler must surface as an error, never crash the process.
+	err := reg.Emit(context.Background(), PreLogin, map[string]interface{}{})
+	if err == nil {
+		t.Fatal("expected error from panicking handler, got nil")
+	}
+}
+
+func TestEmitAsync_RecoversFromPanic(t *testing.T) {
+	reg := NewHookRegistry()
+
+	var ran int32
+	reg.On(AfterSendMessage, HookHandler{
+		Name:    "panicking-async",
+		Runtime: RuntimeNative,
+		Fn: func(ctx context.Context, payload map[string]interface{}) (interface{}, error) {
+			atomic.AddInt32(&ran, 1)
+			panic("boom")
+		},
+	})
+
+	// Must not panic the test process; the goroutine recovers internally.
+	reg.EmitAsync(context.Background(), AfterSendMessage, map[string]interface{}{})
+	// Give the goroutine a moment to run and recover.
+	for i := 0; i < 100 && atomic.LoadInt32(&ran) == 0; i++ {
+		time.Sleep(time.Millisecond)
+	}
+	if atomic.LoadInt32(&ran) == 0 {
+		t.Fatal("async handler never ran")
 	}
 }

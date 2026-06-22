@@ -10,11 +10,15 @@ import (
 )
 
 type DesktopTransport struct {
-	js natspkg.JetStreamContext
+	nc *natspkg.Conn
 }
 
-func NewDesktopTransport(js natspkg.JetStreamContext) *DesktopTransport {
-	return &DesktopTransport{js: js}
+// NewDesktopTransport builds a transport that fans notifications out to the
+// recipient's connected clients over core NATS. Notifications are ephemeral
+// real-time events, so they are published on the core bus (like presence and
+// system events) rather than persisted to a JetStream stream.
+func NewDesktopTransport(nc *natspkg.Conn) *DesktopTransport {
+	return &DesktopTransport{nc: nc}
 }
 
 func (t *DesktopTransport) Name() string {
@@ -30,11 +34,12 @@ func (t *DesktopTransport) Send(ctx context.Context, userID string, notification
 			"type":       notification.Type,
 			"title":      notification.Title,
 			"message":    notification.Body,
+			"priority":   notification.Priority,
 			"room_id":    notification.RoomID,
 			"extra_data": notification.Data,
 			"created_at": time.Now(),
 		},
 	}
 
-	return events.PublishJSON(t.js, subject, payload)
+	return events.PublishJSONCore(t.nc, subject, payload)
 }

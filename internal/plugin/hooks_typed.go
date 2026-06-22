@@ -39,6 +39,19 @@ type TypedHookHandler struct {
 	Fn       func(ctx context.Context, payload interface{}) (*HookResult, error)
 }
 
+// safeCallTyped invokes a typed handler, converting any panic into an error so
+// a misbehaving plugin can never crash the host process.
+func safeCallTyped(ctx context.Context, name string, event HookEvent, fn func(context.Context, interface{}) (*HookResult, error), payload interface{}) (result *HookResult, err error) {
+	defer func() {
+		if rec := recover(); rec != nil {
+			log.Error().Msgf("[Hook Registry] Typed handler '%s' for event '%s' panicked: %v", name, event, rec)
+			result = nil
+			err = fmt.Errorf("typed handler %q panicked: %v", name, rec)
+		}
+	}()
+	return fn(ctx, payload)
+}
+
 // EmitTyped fires typed handlers in priority order with mutation + propagation support.
 // Before* hooks: handlers can mutate the payload (WillBe pattern) or cancel the operation.
 // After* hooks: handlers receive the final payload (HasBeen pattern), cannot cancel.
@@ -57,7 +70,7 @@ func (r *HookRegistry) EmitTyped(ctx context.Context, event HookEvent, payload i
 	}
 
 	for _, h := range handlers {
-		result, err := h.Fn(ctx, payload)
+		result, err := safeCallTyped(ctx, h.Name, event, h.Fn, payload)
 		if err != nil {
 			log.Error().Err(err).Msgf("[Hook Registry] Typed handler '%s' for event '%s' returned error", h.Name, event)
 			return payload, false, fmt.Errorf("handler '%s': %w", h.Name, err)
@@ -111,7 +124,7 @@ func (r *HookRegistry) EmitTypedAsync(ctx context.Context, event HookEvent, payl
 			wg.Add(1)
 			go func(handler TypedHookHandler) {
 				defer wg.Done()
-				_, err := handler.Fn(ctx, payload)
+				_, err := safeCallTyped(ctx, handler.Name, event, handler.Fn, payload)
 				if err != nil {
 					log.Error().Err(err).Msgf("[Hook Registry] Async typed handler '%s' for event '%s' returned error",
 						handler.Name, event)

@@ -2,6 +2,7 @@ package plugin
 
 import (
 	"context"
+	"fmt"
 	"sort"
 	"sync"
 
@@ -186,6 +187,20 @@ func NewHookRegistry() *HookRegistry {
 	}
 }
 
+// safeCall invokes a handler, converting any panic into an error so that a
+// single misbehaving plugin can never crash the host process. Sync emitters
+// treat the returned error like any other (fail-fast); async emitters log it.
+func safeCall(ctx context.Context, name string, event HookEvent, fn func(context.Context, map[string]interface{}) (interface{}, error), payload map[string]interface{}) (result interface{}, err error) {
+	defer func() {
+		if rec := recover(); rec != nil {
+			log.Error().Msgf("[Hook Registry] Handler '%s' for event '%s' panicked: %v", name, event, rec)
+			result = nil
+			err = fmt.Errorf("handler %q panicked: %v", name, rec)
+		}
+	}()
+	return fn(ctx, payload)
+}
+
 // On registers a handler for a specific lifecycle event.
 // Handlers are sorted by priority after each registration (lower = first).
 func (r *HookRegistry) On(event HookEvent, handler HookHandler) {
@@ -215,7 +230,7 @@ func (r *HookRegistry) Emit(ctx context.Context, event HookEvent, payload map[st
 	}
 
 	for _, h := range handlers {
-		_, err := h.Fn(ctx, payload)
+		_, err := safeCall(ctx, h.Name, event, h.Fn, payload)
 		if err != nil {
 			log.Error().Err(err).Msgf("[Hook Registry] Handler '%s' for event '%s' returned error", h.Name, event)
 			return err
@@ -239,7 +254,7 @@ func (r *HookRegistry) EmitCollect(ctx context.Context, event HookEvent, payload
 
 	var lastErr error
 	for _, h := range handlers {
-		result, err := h.Fn(ctx, payload)
+		result, err := safeCall(ctx, h.Name, event, h.Fn, payload)
 		if err == nil && result != nil {
 			// First successful result wins
 			log.Info().Msgf("[Hook Registry] Handler '%s' for event '%s' returned successful result", h.Name, event)
@@ -266,7 +281,7 @@ func (r *HookRegistry) EmitAsync(ctx context.Context, event HookEvent, payload m
 
 	for _, h := range handlers {
 		go func(handler HookHandler) {
-			_, err := handler.Fn(ctx, payload)
+			_, err := safeCall(ctx, handler.Name, event, handler.Fn, payload)
 			if err != nil {
 				log.Error().Err(err).Msgf("[Hook Registry] Async handler '%s' for event '%s' returned error", handler.Name, event)
 			}

@@ -3,6 +3,7 @@ package wasm
 import (
 	"context"
 	"log"
+	"net/url"
 )
 
 // HostAPI provides the host-side functions that WASM plugins can call.
@@ -31,11 +32,14 @@ type HostAPI struct {
 	OnRegisterSlashCommand func(ctx context.Context, command, description string) error
 	OnScheduleTimer        func(ctx context.Context, delayMs int32, hookEvent string, payload string) error
 	OnRegisterRoomType     func(ctx context.Context, typeJSON string) error
+
+	// sandbox enforces outbound HTTP policy (permission + SSRF protection).
+	sandbox *Sandbox
 }
 
 // NewHostAPI creates a host API with default no-op implementations.
 func NewHostAPI() *HostAPI {
-	return &HostAPI{}
+	return &HostAPI{sandbox: NewSandbox()}
 }
 
 // LogForApp handles the host_log call from WASM plugins.
@@ -97,17 +101,45 @@ func (h *HostAPI) KVSetForApp(ctx context.Context, appSlug, key, value string) i
 
 // HTTPRequest handles the host_http_request call from WASM plugins.
 // Allows plugins to make outbound HTTP requests through the host.
-func (h *HostAPI) HTTPRequest(ctx context.Context, appSlug, method, url, body string) string {
+func (h *HostAPI) HTTPRequest(ctx context.Context, appSlug, method, rawURL, body string) string {
 	if h.OnHTTPRequest == nil {
-		log.Printf("[HostAPI] HTTPRequest not wired: app=%s method=%s url=%s", appSlug, method, url)
+		log.Printf("[HostAPI] HTTPRequest not wired: app=%s method=%s url=%s", appSlug, method, rawURL)
 		return ""
 	}
-	val, err := h.OnHTTPRequest(ctx, appSlug, method, url, body)
+
+	// Enforce permission + SSRF policy before making any outbound request.
+	if err := h.checkHTTPAllowed(appSlug, rawURL); err != nil {
+		log.Printf("[HostAPI] HTTPRequest blocked: app=%s url=%s reason=%v", appSlug, rawURL, err)
+		return ""
+	}
+
+	val, err := h.OnHTTPRequest(ctx, appSlug, method, rawURL, body)
 	if err != nil {
-		log.Printf("[HostAPI] HTTPRequest failed: app=%s method=%s url=%s err=%v", appSlug, method, url, err)
+		log.Printf("[HostAPI] HTTPRequest failed: app=%s method=%s url=%s err=%v", appSlug, method, rawURL, err)
 		return ""
 	}
 	return val
+}
+
+// checkHTTPAllowed validates an outbound request against the plugin's declared
+// permissions and the sandbox SSRF block-list (internal/private addresses).
+func (h *HostAPI) checkHTTPAllowed(appSlug, rawURL string) error {
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		return err
+	}
+
+	var perms []string
+	if manifest := Registry.GetBySlug(appSlug); manifest != nil {
+		perms = manifest.Permissions
+	}
+	adapter := &AppAdapter{Slug: appSlug, Name: appSlug, Permissions: perms}
+
+	sandbox := h.sandbox
+	if sandbox == nil {
+		sandbox = NewSandbox()
+	}
+	return sandbox.ValidateHTTPDomain(adapter, parsed.Hostname())
 }
 
 // GetRoomHistory handles the host_get_room_history call from WASM plugins.

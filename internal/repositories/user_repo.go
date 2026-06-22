@@ -128,7 +128,7 @@ func (r *pgUserRepository) GetUserSettings(ctx context.Context, userID string) (
 func (r *pgUserRepository) SearchUsers(ctx context.Context, tenantID, query string, limit int) ([]domain.User, error) {
 	var users []domain.User
 	err := r.db.WithContext(ctx).
-		Where("tenant_id = ? AND is_active = true AND (username ILIKE ? OR display_name ILIKE ?)", tenantID, "%"+query+"%", "%"+query+"%").
+		Where("(tenant_id = ? OR (tenant_id = ? AND system_role = 'bot')) AND is_active = true AND (username ILIKE ? OR display_name ILIKE ?)", tenantID, domain.SystemActorID, "%"+query+"%", "%"+query+"%").
 		Limit(limit).
 		Find(&users).Error
 	return users, err

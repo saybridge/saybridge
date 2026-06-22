@@ -141,6 +141,30 @@ func SetupRouter(s *Server) *gin.Engine {
 		"update_message_content_fn": func(ctx context.Context, messageID, content string) error {
 			return c.MessageRepo.UpdateMessageContent(ctx, messageID, content)
 		},
+		// dm_message_fn delivers a message into the direct room between two users,
+		// creating it on first use. Used for AI-initiated DMs (e.g. catch-up digests).
+		"dm_message_fn": func(ctx context.Context, fromUserID, toUserID, content string) (string, error) {
+			room, err := c.RoomUC.CreateRoom(ctx, domain.DefaultTenantID, fromUserID, toUserID, "direct", "", "", false)
+			if err != nil {
+				return "", err
+			}
+			msg := &domain.Message{
+				RoomID:     room.ID,
+				SenderID:   fromUserID,
+				SenderName: "AI Assistant",
+				Content:    content,
+				MsgType:    "text",
+				CreatedAt:  time.Now(),
+			}
+			if err := c.MessageRepo.SaveMessage(ctx, msg); err != nil {
+				return "", err
+			}
+			subject := events.RoomSubject(domain.DefaultTenantID, room.ID)
+			_ = events.PublishJSON(s.js, subject, map[string]interface{}{
+				"event": "msg:receive", "room_id": room.ID, "data": msg,
+			})
+			return msg.MessageID, nil
+		},
 		"publish_ws_event_fn": func(ctx context.Context, roomID, eventName, data string) error {
 			subject := events.RoomSubject(domain.DefaultTenantID, roomID)
 			payloadMap := map[string]interface{}{

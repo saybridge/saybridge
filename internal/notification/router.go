@@ -2,7 +2,9 @@ package notification
 
 import (
 	"context"
+	"fmt"
 
+	goredis "github.com/redis/go-redis/v9"
 	"github.com/rs/zerolog/log"
 
 	"github.com/saybridge/saybridge/internal/domain"
@@ -16,23 +18,28 @@ type Transport interface {
 }
 
 type Notification struct {
-	Type   string                 `json:"type"` // "message", "mention", "reaction", "invite"
-	Title  string                 `json:"title"`
-	Body   string                 `json:"body"`
-	RoomID string                 `json:"room_id"`
-	Data   map[string]interface{} `json:"data"`
+	Type     string                 `json:"type"` // "message", "mention", "reaction", "invite"
+	Title    string                 `json:"title"`
+	Body     string                 `json:"body"`
+	Priority string                 `json:"priority"` // "low", "normal", "important", "urgent"
+	RoomID   string                 `json:"room_id"`
+	Data     map[string]interface{} `json:"data"`
 }
 
 type NotificationRouter struct {
 	db         *gorm.DB
+	rdb        *goredis.Client
 	hooks      *plugin.HookRegistry
+	smart      *SmartFilter
 	transports []Transport
 }
 
-func NewNotificationRouter(db *gorm.DB, hooks *plugin.HookRegistry, transports ...Transport) *NotificationRouter {
+func NewNotificationRouter(db *gorm.DB, rdb *goredis.Client, hooks *plugin.HookRegistry, transports ...Transport) *NotificationRouter {
 	return &NotificationRouter{
 		db:         db,
+		rdb:        rdb,
 		hooks:      hooks,
+		smart:      NewSmartFilter(rdb),
 		transports: transports,
 	}
 }
@@ -58,7 +65,34 @@ func (r *NotificationRouter) Notify(ctx context.Context, userID string, notif No
 		}
 	}
 
-	// 2. Fire BeforeNotify hook (synchronously so plugins can mutate or cancel)
+	// 2. Smart filtering: priority classification, focus-mode suppression, grouping.
+	if r.smart != nil {
+		senderID, _ := notif.Data["sender_id"].(string)
+		senderName, _ := notif.Data["sender_name"].(string)
+		roomType, _ := notif.Data["room_type"].(string)
+
+		isVIP := r.smart.IsVIP(ctx, userID, senderID)
+		notif.Priority = ClassifyPriority(notif.Body, roomType, userID, senderID, isVIP)
+
+		// Urgent and important notifications always go through untouched. Lower
+		// priority traffic is subject to focus mode and grouping.
+		if notif.Priority == PriorityNormal || notif.Priority == PriorityLow {
+			presence, customStatus := r.recipientStatus(ctx, userID)
+			if IsFocusMode(presence, customStatus) {
+				log.Debug().Msgf("[NotificationRouter] Suppressed %s notification for user %s (focus mode)", notif.Priority, userID)
+				return
+			}
+
+			decision := r.smart.Group(ctx, userID, notif.RoomID, senderName)
+			if !decision.Deliver {
+				log.Debug().Msgf("[NotificationRouter] Grouped notification for user %s in room %s", userID, notif.RoomID)
+				return
+			}
+			notif.Body = decision.Body
+		}
+	}
+
+	// 3. Fire BeforeNotify hook (synchronously so plugins can mutate or cancel)
 	payload := map[string]interface{}{
 		"user_id":      userID,
 		"notification": &notif,
@@ -79,7 +113,7 @@ func (r *NotificationRouter) Notify(ctx context.Context, userID string, notif No
 		}
 	}
 
-	// 3. Route to transports
+	// 4. Route to transports
 	for _, transport := range r.transports {
 		go func(t Transport) {
 			if err := t.Send(context.Background(), userID, notif); err != nil {
@@ -88,8 +122,25 @@ func (r *NotificationRouter) Notify(ctx context.Context, userID string, notif No
 		}(transport)
 	}
 
-	// 4. Fire AfterNotify hook
+	// 5. Fire AfterNotify hook
 	if r.hooks != nil {
 		r.hooks.EmitAsync(ctx, plugin.AfterNotify, payload)
 	}
+}
+
+// recipientStatus resolves the recipient's current presence and custom status for
+// focus-mode evaluation. Presence is read from the live Redis cache when
+// available, falling back to the persisted value on the user record.
+func (r *NotificationRouter) recipientStatus(ctx context.Context, userID string) (presence, customStatus string) {
+	var user domain.User
+	if err := r.db.Select("presence", "custom_status").First(&user, "id = ?", userID).Error; err == nil {
+		presence = user.Presence
+		customStatus = user.CustomStatus
+	}
+	if r.rdb != nil {
+		if p, err := r.rdb.Get(ctx, fmt.Sprintf("user:presence:%s", userID)).Result(); err == nil && p != "" {
+			presence = p
+		}
+	}
+	return presence, customStatus
 }

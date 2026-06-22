@@ -248,6 +248,9 @@ func (p *GeminiProvider) ChatStream(ctx context.Context, req *ChatRequest, ch ch
 	return nil
 }
 
+// SupportsEmbeddings reports true: Gemini exposes an embeddings endpoint.
+func (p *GeminiProvider) SupportsEmbeddings() bool { return true }
+
 func (p *GeminiProvider) Embeddings(ctx context.Context, texts []string) ([][]float32, error) {
 	// Optional support for embeddings
 	return nil, fmt.Errorf("embeddings are not supported by Gemini provider")

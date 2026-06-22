@@ -9,6 +9,10 @@ type Provider interface {
 	Chat(ctx context.Context, req *ChatRequest) (*ChatResponse, error)
 	ChatStream(ctx context.Context, req *ChatRequest, ch chan<- StreamChunk) error
 	Embeddings(ctx context.Context, texts []string) ([][]float32, error)
+	// SupportsEmbeddings reports whether this provider can produce embeddings.
+	// The gateway uses this to route embedding requests away from chat-only
+	// providers (e.g. Claude) to one that supports them.
+	SupportsEmbeddings() bool
 }
 
 type ChatRequest struct {

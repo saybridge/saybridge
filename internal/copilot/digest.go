@@ -17,11 +17,12 @@ import (
 // DigestService generates daily catch-up digests for users with unread messages.
 // It runs as a background goroutine registered via OnServerStart hook.
 type DigestService struct {
-	gateway       *Gateway
-	messageRepo   domain.MessageRepository
-	rdb           *redis.Client
-	sendMessageFn func(ctx context.Context, roomID, content string) error
-	digestHour    int // hour of day to send digest (default: 8 = 08:00)
+	gateway     *Gateway
+	messageRepo domain.MessageRepository
+	rdb         *redis.Client
+	// deliverFn delivers the digest text to a user (as a DM from the Sai bot).
+	deliverFn  func(ctx context.Context, userID, content string) error
+	digestHour int // hour of day to send digest (default: 8 = 08:00)
 }
 
 // DigestConfig holds configuration for the digest service.
@@ -43,9 +44,14 @@ func init() {
 
 			rdb, _ := payload["rdb"].(*redis.Client)
 			messageRepo, _ := payload["message_repo"].(domain.MessageRepository)
+			dmFn, _ := payload["dm_message_fn"].(func(ctx context.Context, fromUserID, toUserID, content string) (string, error))
 
 			if rdb == nil || messageRepo == nil || DefaultGateway == nil {
 				log.Printf("[Digest] Missing dependencies, skipping digest service")
+				return nil, nil
+			}
+			if dmFn == nil {
+				log.Printf("[Digest] No DM delivery function available, skipping digest service")
 				return nil, nil
 			}
 
@@ -53,7 +59,12 @@ func init() {
 				gateway:     DefaultGateway,
 				messageRepo: messageRepo,
 				rdb:         rdb,
-				digestHour:  8, // 08:00 default
+				deliverFn: func(ctx context.Context, userID, content string) error {
+					// Digests are delivered as a DM from the Sai assistant bot.
+					_, err := dmFn(ctx, saiBotID, userID, content)
+					return err
+				},
+				digestHour: 8, // 08:00 default
 			}
 
 			go ds.Start(context.Background())
@@ -127,13 +138,10 @@ func (ds *DigestService) runDigestCycle(ctx context.Context) {
 			continue
 		}
 
-		// Send digest as system message (DM to user)
-		// Use a special "digest" room or the user's DM with system bot
-		digestRoomID := fmt.Sprintf("digest:%s", userID)
-		if ds.sendMessageFn != nil {
-			if err := ds.sendMessageFn(ctx, digestRoomID, digest); err != nil {
-				log.Printf("[Digest] Failed to send digest to user %s: %v", userID, err)
-			}
+		// Deliver the digest as a DM from the Sai assistant bot to the user.
+		if err := ds.deliverFn(ctx, userID, digest); err != nil {
+			log.Printf("[Digest] Failed to send digest to user %s: %v", userID, err)
+			continue
 		}
 
 		// Mark as sent today

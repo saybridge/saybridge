@@ -243,6 +243,9 @@ func (p *ClaudeProvider) Embeddings(ctx context.Context, texts []string) ([][]fl
 	return nil, fmt.Errorf("embeddings are not supported by Claude provider")
 }
 
+// SupportsEmbeddings reports false: Anthropic has no embeddings endpoint.
+func (p *ClaudeProvider) SupportsEmbeddings() bool { return false }
+
 func (p *ClaudeProvider) SetAPIKey(apiKey string) {
 	p.apiKey = apiKey
 }

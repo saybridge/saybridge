@@ -69,6 +69,11 @@ func (r *PluginRegistryStore) ScanPluginsDir(baseDir string) error {
 			continue
 		}
 
+		// Skip scaffold/template directories (e.g. "_template").
+		if strings.HasPrefix(entry.Name(), "_") {
+			continue
+		}
+
 		pluginDir := filepath.Join(absDir, entry.Name())
 		manifestPath := filepath.Join(pluginDir, "manifest.json")
 

@@ -27,6 +27,11 @@ type WasmModule struct {
 	Manifest *PluginManifest
 	Compiled wazero.CompiledModule
 	Instance api.Module // nil until instantiated
+
+	// callMu serializes hook invocations on this module. A single instance and
+	// its linear memory are shared across all calls, so concurrent on_hook calls
+	// would otherwise race on malloc/memory writes.
+	callMu sync.Mutex
 }
 
 // NewWasmRuntime creates a new WASM runtime with the host API.
@@ -329,6 +334,11 @@ func (wr *WasmRuntime) CallHook(ctx context.Context, slug, eventName string, pay
 	if !ok || wm.Instance == nil {
 		return -1, fmt.Errorf("plugin '%s' not instantiated", slug)
 	}
+
+	// Serialize calls on this module: the instance and its linear memory are
+	// shared, so concurrent on_hook calls would race on malloc/memory writes.
+	wm.callMu.Lock()
+	defer wm.callMu.Unlock()
 
 	mod := wm.Instance
 	onHook := mod.ExportedFunction("on_hook")

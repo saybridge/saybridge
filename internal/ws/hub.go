@@ -53,6 +53,7 @@ func NewHub(js nats.JetStreamContext, nc *nats.Conn) *Hub {
 func (h *Hub) Run() {
 	h.subscribeToPresenceNATS()
 	h.subscribeToSystemNATS()
+	h.subscribeToNotificationsNATS()
 
 	for {
 		select {
@@ -114,6 +115,42 @@ func (h *Hub) subscribeToSystemNATS() {
 	})
 	if err != nil {
 		log.Printf("[Hub] Failed to subscribe to system subject: %v", err)
+	}
+}
+
+// subscribeToNotificationsNATS listens for per-user notification events and
+// delivers them to that user's locally connected clients. Notifications are
+// published on the core bus to subject "tenant.<tenantID>.notifications.<userID>".
+func (h *Hub) subscribeToNotificationsNATS() {
+	subject := "tenant.*.notifications.*"
+
+	_, err := h.nc.Subscribe(subject, func(msg *nats.Msg) {
+		// Parse user ID from subject "tenant.<tenantID>.notifications.<userID>"
+		parts := strings.Split(msg.Subject, ".")
+		if len(parts) >= 4 {
+			userID := parts[3]
+			h.BroadcastToUser(userID, msg.Data)
+		}
+	})
+	if err != nil {
+		log.Printf("[Hub] Failed to subscribe to notifications subject: %v", err)
+	}
+}
+
+// BroadcastToUser routes a payload to all local connections belonging to userID,
+// regardless of which rooms they have joined.
+func (h *Hub) BroadcastToUser(userID string, payload []byte) {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+
+	for client := range h.clients {
+		if client.userID == userID {
+			select {
+			case client.send <- payload:
+			default:
+				// Client buffer full, skip
+			}
+		}
 	}
 }
 

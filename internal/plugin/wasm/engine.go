@@ -74,11 +74,29 @@ func (e *Engine) InstallWasmApp(ctx context.Context, slug string) error {
 		}
 	}
 
+	// Build an adapter once for install-time permission validation.
+	installAdapter := &AppAdapter{
+		Slug:        slug,
+		Name:        manifest.Name,
+		Version:     manifest.Version,
+		Permissions: manifest.Permissions,
+		HookEvents:  manifest.Hooks,
+		IsWasm:      true,
+	}
+
 	// Register hook handlers that dispatch to WASM on_hook
 	for _, hookName := range manifest.Hooks {
 		hookEvent := plugin.HookEvent(hookName)
 		capturedSlug := slug
 		capturedHook := hookName
+
+		// Enforce permissions at install time: refuse to wire a hook the plugin
+		// has not declared the required permissions for, rather than silently
+		// no-op'ing on every invocation.
+		if err := e.sandbox.CheckPermission(installAdapter, hookName); err != nil {
+			log.Printf("[AppRuntime] Refusing to register hook '%s' for plugin '%s': %v", hookName, slug, err)
+			continue
+		}
 
 		e.hooks.On(hookEvent, plugin.HookHandler{
 			Name:     fmt.Sprintf("wasm:%s", slug),

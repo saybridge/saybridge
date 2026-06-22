@@ -14,6 +14,7 @@ type Gateway struct {
 	mu        sync.RWMutex
 	providers map[string]Provider
 	primary   string // active provider ID from config
+	embedder  string // preferred provider ID for embeddings (optional)
 }
 
 // NewGateway creates a new Gateway instance.
@@ -58,17 +59,53 @@ func (g *Gateway) Stream(ctx context.Context, req *ChatRequest, ch chan<- Stream
 	return p.ChatStream(ctx, req, ch)
 }
 
-// Embed routes an embedding generation request to the active provider.
+// Embed routes an embedding generation request to a provider that supports
+// embeddings. The chat provider (g.primary) may be embeddings-only incapable
+// (e.g. Claude); in that case the request is routed to the configured embedder,
+// then to any registered provider that supports embeddings.
 func (g *Gateway) Embed(ctx context.Context, texts []string) ([][]float32, error) {
-	g.mu.RLock()
-	primary := g.primary
-	p, ok := g.providers[primary]
-	g.mu.RUnlock()
-
-	if !ok {
-		return nil, fmt.Errorf("active AI provider %q is not registered", primary)
+	p, err := g.resolveEmbedder()
+	if err != nil {
+		return nil, err
 	}
 	return p.Embeddings(ctx, texts)
+}
+
+// resolveEmbedder picks the provider used for embeddings. Preference order:
+// the explicitly configured embedder, then the primary chat provider, then any
+// other registered provider that supports embeddings (openai, gemini, ollama).
+func (g *Gateway) resolveEmbedder() (Provider, error) {
+	g.mu.RLock()
+	defer g.mu.RUnlock()
+
+	candidates := []string{g.embedder, g.primary, "openai", "gemini", "ollama"}
+	for _, id := range candidates {
+		if id == "" {
+			continue
+		}
+		if p, ok := g.providers[id]; ok && p.SupportsEmbeddings() {
+			return p, nil
+		}
+	}
+	return nil, fmt.Errorf("no registered AI provider supports embeddings")
+}
+
+// SetEmbedder sets the preferred provider for embeddings. Empty string falls
+// back to automatic resolution.
+func (g *Gateway) SetEmbedder(providerID string) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	g.embedder = providerID
+}
+
+// GetEmbedder returns the resolved provider ID currently used for embeddings,
+// or "" if none can serve embeddings.
+func (g *Gateway) GetEmbedder() string {
+	p, err := g.resolveEmbedder()
+	if err != nil {
+		return ""
+	}
+	return p.ID()
 }
 
 // SetPrimary changes the active provider.

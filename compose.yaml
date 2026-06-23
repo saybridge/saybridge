@@ -121,6 +121,43 @@ services:
       timeout: 5s
       retries: 5
 
+  # 8. Metrics collection (Prometheus)
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: saybridge_prometheus
+    restart: unless-stopped
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.retention.time=15d"
+    volumes:
+      - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    extra_hosts:
+      - "host.docker.internal:host-gateway" # allow scraping the host-run API on Linux
+    networks:
+      - saybridge-network
+
+  # 9. Metrics dashboards (Grafana) — Prometheus datasource auto-provisioned
+  grafana:
+    image: grafana/grafana:latest
+    container_name: saybridge_grafana
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - ./infra/grafana/provisioning:/etc/grafana/provisioning
+      - ./grafana_data:/var/lib/grafana
+    ports:
+      - "3001:3000"
+    networks:
+      - saybridge-network
+
 networks:
   saybridge-network:
     driver: bridge

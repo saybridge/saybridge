@@ -12,6 +12,7 @@ import (
 	"github.com/saybridge/saybridge/internal/authz"
 	"github.com/saybridge/saybridge/internal/domain"
 	"github.com/saybridge/saybridge/internal/admin"
+	"github.com/saybridge/saybridge/pkg/metrics"
 	"github.com/saybridge/saybridge/pkg/response"
 	"gorm.io/gorm"
 )
@@ -600,6 +601,17 @@ func (h *AnalyticsHandler) GetDashboard(c *gin.Context) {
 	}
 
 	response.JSON(c, http.StatusOK, metrics)
+}
+
+// GetMetrics handles GET /api/v1/admin/metrics — a curated, live snapshot of
+// the Prometheus metrics for the admin observability dashboard. Admin-only.
+func (h *AnalyticsHandler) GetMetrics(c *gin.Context) {
+	role, _ := c.Get("role")
+	if role != "admin" && role != "super_admin" {
+		response.Error(c, http.StatusForbidden, "FORBIDDEN", "Admin permissions required")
+		return
+	}
+	response.JSON(c, http.StatusOK, metrics.Gather())
 }
 
 // GetAuditLogs handles GET /api/v1/admin/audit?action=&actor_id=&resource=&from=&to=&page=&limit=

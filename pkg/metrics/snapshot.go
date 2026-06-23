@@ -1,9 +1,6 @@
 package metrics
 
 import (
-	"sort"
-	"strings"
-
 	"github.com/prometheus/client_golang/prometheus"
 	dto "github.com/prometheus/client_model/go"
 )
@@ -30,29 +27,9 @@ func LoadedPlugins() float64 { return gaugeValue(PluginsLoaded) }
 // HTTPErrorRate returns the fraction of HTTP requests that returned a 5xx
 // status, in the range [0,1]. Returns 0 when no requests have been recorded.
 func HTTPErrorRate() float64 {
-	mfs, err := prometheus.DefaultGatherer.Gather()
-	if err != nil {
-		return 0
-	}
-	var total, errors float64
-	for _, mf := range mfs {
-		if mf.GetName() != namespace+"_http_requests_total" {
-			continue
-		}
-		for _, m := range mf.GetMetric() {
-			v := m.GetCounter().GetValue()
-			total += v
-			for _, lp := range m.GetLabel() {
-				if lp.GetName() == "status" && strings.HasPrefix(lp.GetValue(), "5") {
-					errors += v
-				}
-			}
-		}
-	}
-	if total == 0 {
-		return 0
-	}
-	return errors / total
+	fams := gatherMap()
+	mf := fams[namespace+"_http_requests_total"]
+	return ratio(statusClasses(mf)["5xx"], mfCounterSum(mf))
 }
 
 // HTTPLatencyQuantiles estimates p50/p95/p99 HTTP request latency (in seconds)
@@ -61,44 +38,8 @@ func HTTPErrorRate() float64 {
 // enough for an at-a-glance dashboard; use the raw histogram in Grafana/PromQL
 // for precise quantiles.
 func HTTPLatencyQuantiles() (p50, p95, p99 float64) {
-	mfs, err := prometheus.DefaultGatherer.Gather()
-	if err != nil {
-		return 0, 0, 0
-	}
-
-	cumulative := map[float64]uint64{}
-	var totalCount uint64
-	found := false
-
-	for _, mf := range mfs {
-		if mf.GetName() != namespace+"_http_request_duration_seconds" {
-			continue
-		}
-		found = true
-		for _, m := range mf.GetMetric() {
-			h := m.GetHistogram()
-			if h == nil {
-				continue
-			}
-			totalCount += h.GetSampleCount()
-			for _, b := range h.GetBucket() {
-				cumulative[b.GetUpperBound()] += b.GetCumulativeCount()
-			}
-		}
-	}
-	if !found || totalCount == 0 {
-		return 0, 0, 0
-	}
-
-	bounds := make([]float64, 0, len(cumulative))
-	for ub := range cumulative {
-		bounds = append(bounds, ub)
-	}
-	sort.Float64s(bounds)
-
-	return quantileFromBuckets(bounds, cumulative, totalCount, 0.50),
-		quantileFromBuckets(bounds, cumulative, totalCount, 0.95),
-		quantileFromBuckets(bounds, cumulative, totalCount, 0.99)
+	fams := gatherMap()
+	return histogramQuantiles(fams[namespace+"_http_request_duration_seconds"], 0.50, 0.95, 0.99)
 }
 
 // quantileFromBuckets does linear interpolation within the bucket that contains
@@ -114,10 +55,6 @@ func quantileFromBuckets(bounds []float64, cumulative map[float64]uint64, total 
 	for _, ub := range bounds {
 		count := cumulative[ub]
 		if float64(count) >= rank {
-			// +Inf bucket: cannot interpolate, return the last finite bound.
-			if ub == bounds[len(bounds)-1] && len(bounds) > 1 {
-				// fall through to interpolation below if a finite bound exists
-			}
 			bucketCount := count - prevCount
 			if bucketCount == 0 {
 				return prevBound

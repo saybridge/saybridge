@@ -1,0 +1,22 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  # Saybridge API. The app typically runs on the host (air/make run) during
+  # development, so we scrape it via host.docker.internal. If you containerize
+  # the API on saybridge-network, change the target to "saybridge_api:8080".
+  - job_name: saybridge
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["host.docker.internal:8080"]
+        labels:
+          service: saybridge-api
+    # If METRICS_TOKEN is set on the app, uncomment and set it here:
+    # authorization:
+    #   type: Bearer
+    #   credentials: "<METRICS_TOKEN>"
+
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]

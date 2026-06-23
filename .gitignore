@@ -35,3 +35,5 @@ postgres_data
 redis_data
 meilisearch_data
 nats_data
+prometheus_data
+grafana_data

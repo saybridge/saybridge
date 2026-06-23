@@ -207,7 +207,10 @@ func ObserveAI(provider, model, outcome string, d time.Duration, inputTokens, ou
 // SetPluginsLoaded updates the loaded-plugins gauge.
 func SetPluginsLoaded(n int) { PluginsLoaded.Set(float64(n)) }
 
-var dbCollectorOnce sync.Once
+var (
+	dbCollectorOnce sync.Once
+	registeredDB    *sql.DB // retained so Snapshot can read live pool stats
+)
 
 // RegisterDBCollector registers a Prometheus collector exposing the database
 // connection-pool stats (open/idle/in-use connections, wait counts). Safe to
@@ -217,6 +220,7 @@ func RegisterDBCollector(db *sql.DB, name string) {
 		return
 	}
 	dbCollectorOnce.Do(func() {
+		registeredDB = db
 		prometheus.MustRegister(collectors.NewDBStatsCollector(db, name))
 	})
 }

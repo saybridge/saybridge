@@ -40,6 +40,7 @@ func RegisterAdminRoutes(api *gin.RouterGroup, s *Server, c *app.Container, enfo
 	admin := api.Group("/admin")
 	{
 		admin.GET("/analytics", analyticsH.GetDashboard)
+		admin.GET("/metrics", analyticsH.GetMetrics)
 		admin.GET("/audit", analyticsH.GetAuditLogs)
 		admin.GET("/audit/export", analyticsH.ExportAuditLogs)
 		admin.POST("/export/user/:id", exportH.ExportUser)

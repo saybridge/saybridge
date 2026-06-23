@@ -333,6 +333,11 @@ func init() {
 				}
 			}
 
+			// Register built-in agent tools (search workspace, read room history).
+			// This is what makes the copilot agentic: it can act, not just answer.
+			registerBuiltinTools(DefaultToolRegistry, semIdx, messageRepo)
+			log.Printf("[AIAgent] ✓ Tool registry initialized (%d tools)", DefaultToolRegistry.Len())
+
 			if api != nil {
 				h := &aiHandler{
 					gateway:       gw,
@@ -350,6 +355,7 @@ func init() {
 					copilotGroup.POST("/summarize", h.summarize)
 					copilotGroup.POST("/translate", h.translate)
 					copilotGroup.POST("/search", h.semanticSearch)
+					copilotGroup.POST("/agent", h.agent)
 					copilotGroup.GET("/providers", h.listProviders)
 					copilotGroup.GET("/config", h.getConfig)
 					copilotGroup.PUT("/config", h.updateConfig)
